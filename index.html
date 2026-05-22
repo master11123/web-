@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web 登录系统</title>
+    <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #app {
+            width: 100%;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 400px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            padding: 40px;
+            margin: auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 28px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 600;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .auth-links {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .auth-links a {
+            color: #667eea;
+            text-decoration: none;
+            font-size: 14px;
+            cursor: pointer;
+            margin: 0 5px;
+        }
+
+        .auth-links a:hover {
+            text-decoration: underline;
+        }
+
+        .message {
+            padding: 12px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .message.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+            display: block;
+        }
+
+        .message.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+            display: block;
+        }
+
+        .profile-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .profile-header .avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 30px;
+            margin: 0 auto 15px;
+        }
+
+        .profile-header h2 {
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .profile-header p {
+            color: #999;
+            font-size: 14px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .tabs button {
+            flex: 1;
+            padding: 10px 15px;
+            background: none;
+            border: none;
+            border-bottom: 3px solid transparent;
+            color: #666;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+            margin: 0;
+        }
+
+        .tabs button.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .btn-group button {
+            flex: 1;
+        }
+
+        .logout-btn {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .loading {
+            display: inline-block;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- 登录界面 -->
+        <div v-if="currentView === 'login'" class="container">
+            <h1>🔐 登录</h1>
+            
+            <div :class="['message', messageType]" v-if="message">{{ message }}</div>
+
+            <form @submit.prevent="handleLogin">
+                <div class="form-group">
+                    <label>邮箱</label>
+                    <input 
+                        v-model="login.email" 
+                        type="email" 
+                        placeholder="输入邮箱"
+                        required
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label>密码</label>
+                    <input 
+                        v-model="login.password" 
+                        type="password" 
+                        placeholder="输入密码"
+                        required
+                    >
+                </div>
+
+                <button type="submit" :disabled="loading">
+                    <span v-if="loading" class="loading">⏳</span>
+                    <span v-else>登录</span>
+                </button>
+            </form>
+
+            <div class="auth-links">
+                <a @click="currentView = 'register'">注册新账户</a>
+                <span> | </span>
+                <a @click="currentView = 'forgot'">忘记密码？</a>
+            </div>
+        </div>
+
+        <!-- 注册界面 -->
+        <div v-if="currentView === 'register'" class="container">
+            <h1>📝 注册</h1>
+            
+            <div :class="['message', messageType]" v-if="message">{{ message }}</div>
+
+            <form @submit.prevent="handleRegister">
+                <div class="form-group">
+                    <label>用户名</label>
+                    <input 
+                        v-model="register.username" 
+                        type="text" 
+                        placeholder="输入用户名"
+                        required
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label>邮箱</label>
+                    <input 
+                        v-model="register.email" 
+                        type="email" 
+                        placeholder="输入邮箱"
+                        required
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label>密码</label>
+                    <input 
+                        v-model="register.password" 
+                        type="password" 
+                        placeholder="输入密码"
+                        required
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label>确认密码</label>
+                    <input 
+                        v-model="register.confirmPassword" 
+                        type="password" 
+                        placeholder="再次输入密码"
+                        required
+                    >
+                </div>
+
+                <button type="submit" :disabled="loading">
+                    <span v-if="loading" class="loading">⏳</span>
+                    <span v-else>注册</span>
+                </button>
+            </form>
+
+            <div class="auth-links">
+                <a @click="currentView = 'login'">返回登录</a>
+            </div>
+        </div>
+
+        <!-- 忘记密码界面 -->
+        <div v-if="currentView === 'forgot'" class="container">
+            <h1>🔑 重置密码</h1>
+            
+            <div :class="['message', messageType]" v-if="message">{{ message }}</div>
+
+            <form @submit.prevent="handleForgotPassword" v-if="!resetToken">
+                <div class="form-group">
+                    <label>邮箱</label>
+                    <input 
+                        v-model="forgot.email" 
+                        type="email" 
+                        placeholder="输入邮箱"
+                        required
+                    >
+                </div>
+
+                <button type="submit" :disabled="loading">
+                    <span v-if="loading" class="loading">⏳</span>
+                    <span v-else>发送重置链接</span>
+                </button>
+            </form>
+
+            <form @submit.prevent="handleResetPassword" v-if="resetToken">
+                <div class="form-group">
+                    <label>新密码</label>
+                    <input 
+                        v-model="reset.newPassword" 
+                        type="password" 
+                        placeholder="输入新密码"
+                        required
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label>确认密码</label>
+                    <input 
+                        v-model="reset.confirmPassword" 
+                        type="password" 
+                        placeholder="确认新密码"
+                        required
+                    >
+                </div>
+
+                <button type="submit" :disabled="loading">
+                    <span v-if="loading" class="loading">⏳</span>
+                    <span v-else>重置密码</span>
+                </button>
+            </form>
+
+            <div class="auth-links">
+                <a @click="goBackToLogin">返回登录</a>
+            </div>
+        </div>
+
+        <!-- 用户主页 -->
+        <div v-if="currentView === 'profile'" class="container">
+            <div class="profile-header">
+                <div class="avatar">👤</div>
+                <h2>{{ userInfo.username }}</h2>
+                <p>{{ userInfo.email }}</p>
+            </div>
+
+            <div class="tabs">
+                <button 
+                    :class="{ active: profileTab === 'info' }"
+                    @click="profileTab = 'info'"
+                >
+                    个人信息
+                </button>
+                <button 
+                    :class="{ active: profileTab === 'password' }"
+                    @click="profileTab = 'password'"
+                >
+                    修改密码
+                </button>
+            </div>
+
+            <!-- 个人信息 Tab -->
+            <div v-if="profileTab === 'info'">
+                <div :class="['message', messageType]" v-if="message">{{ message }}</div>
+
+                <form @submit.prevent="handleUpdateProfile">
+                    <div class="form-group">
+                        <label>用户名</label>
+                        <input 
+                            v-model="editProfile.username" 
+                            type="text" 
+                            placeholder="输入用户名"
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label>个人简介</label>
+                        <input 
+                            v-model="editProfile.bio" 
+                            type="text" 
+                            placeholder="添加个人简介"
+                        >
+                    </div>
+
+                    <button type="submit" :disabled="loading">
+                        <span v-if="loading" class="loading">⏳</span>
+                        <span v-else>保存信息</span>
+                    </button>
+                </form>
+            </div>
+
+            <!-- 修改密码 Tab -->
+            <div v-if="profileTab === 'password'">
+                <div :class="['message', messageType]" v-if="message">{{ message }}</div>
+
+                <form @submit.prevent="handleChangePassword">
+                    <div class="form-group">
+                        <label>当前密码</label>
+                        <input 
+                            v-model="passwordData.currentPassword" 
+                            type="password" 
+                            placeholder="输入当前密码"
+                            required
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label>新密码</label>
+                        <input 
+                            v-model="passwordData.newPassword" 
+                            type="password" 
+                            placeholder="输入新密码"
+                            required
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label>确认密码</label>
+                        <input 
+                            v-model="passwordData.confirmPassword" 
+                            type="password" 
+                            placeholder="确认新密码"
+                            required
+                        >
+                    </div>
+
+                    <button type="submit" :disabled="loading">
+                        <span v-if="loading" class="loading">⏳</span>
+                        <span v-else>修改密码</span>
+                    </button>
+                </form>
+            </div>
+
+            <div class="btn-group">
+                <button class="logout-btn" @click="handleLogout">退出登录</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+
+        createApp({
+            data() {
+                return {
+                    currentView: 'login', // login, register, forgot, profile
+                    profileTab: 'info',
+                    loading: false,
+                    message: '',
+                    messageType: 'success',
+                    resetToken: '',
+                    
+                    login: {
+                        email: '',
+                        password: ''
+                    },
+                    
+                    register: {
+                        username: '',
+                        email: '',
+                        password: '',
+                        confirmPassword: ''
+                    },
+                    
+                    forgot: {
+                        email: ''
+                    },
+                    
+                    reset: {
+                        newPassword: '',
+                        confirmPassword: ''
+                    },
+                    
+                    userInfo: {
+                        id: '',
+                        username: '',
+                        email: '',
+                        bio: '',
+                        avatar: ''
+                    },
+                    
+                    editProfile: {
+                        username: '',
+                        bio: '',
+                        avatar: ''
+                    },
+                    
+                    passwordData: {
+                        currentPassword: '',
+                        newPassword: '',
+                        confirmPassword: ''
+                    },
+
+                    token: localStorage.getItem('token') || ''
+                };
+            },
+
+            methods: {
+                async handleRegister() {
+                    this.loading = true;
+                    try {
+                        const response = await axios.post('/api/auth/register', this.register);
+                        this.messageType = 'success';
+                        this.message = response.data.message;
+                        
+                        setTimeout(() => {
+                            this.currentView = 'login';
+                            this.register = { username: '', email: '', password: '', confirmPassword: '' };
+                            this.message = '';
+                        }, 2000);
+                    } catch (error) {
+                        this.messageType = 'error';
+                        this.message = error.response?.data?.message || '注册失败';
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                async handleLogin() {
+                    this.loading = true;
+                    try {
+                        const response = await axios.post('/api/auth/login', this.login);
+                        this.token = response.data.data.token;
+                        localStorage.setItem('token', this.token);
+                        
+                        this.userInfo = response.data.data.user;
+                        this.messageType = 'success';
+                        this.message = '登录成功';
+                        
+                        setTimeout(() => {
+                            this.currentView = 'profile';
+                            this.message = '';
+                        }, 1000);
+                    } catch (error) {
+                        this.messageType = 'error';
+                        this.message = error.response?.data?.message || '登录失败';
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                async handleForgotPassword() {
+                    this.loading = true;
+                    try {
+                        const response = await axios.post('/api/auth/forgot-password', this.forgot);
+                        this.resetToken = response.data.resetToken;
+                        this.messageType = 'success';
+                        this.message = response.data.message;
+                    } catch (error) {
+                        this.messageType = 'error';
+                        this.message = error.response?.data?.message || '请求失败';
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                async handleResetPassword() {
+                    this.loading = true;
+                    try {
+                        const response = await axios.post('/api/auth/reset-password', {
+                            resetToken: this.resetToken,
+                            ...this.reset
+                        });
+                        this.messageType = 'success';
+                        this.message = response.data.message;
+                        
+                        setTimeout(() => {
+                            this.goBackToLogin();
+                        }, 2000);
+                    } catch (error) {
+                        this.messageType = 'error';
+                        this.message = error.response?.data?.message || '重置失败';
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                async handleUpdateProfile() {
+                    this.loading = true;
+                    try {
+                        const response = await axios.put('/api/users/profile', this.editProfile, {
+                            headers: { Authorization: `Bearer ${this.token}` }
+                        });
+                        this.messageType = 'success';
+                        this.message = response.data.message;
+                        
+                        setTimeout(() => {
+                            this.message = '';
+                        }, 2000);
+                    } catch (error) {
+                        this.messageType = 'error';
+                        this.message = error.response?.data?.message || '更新失败';
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                async handleChangePassword() {
+                    this.loading = true;
+                    try {
+                        const response = await axios.put('/api/users/change-password', this.passwordData, {
+                            headers: { Authorization: `Bearer ${this.token}` }
+                        });
+                        this.messageType = 'success';
+                        this.message = response.data.message;
+                        this.passwordData = { currentPassword: '', newPassword: '', confirmPassword: '' };
+                        
+                        setTimeout(() => {
+                            this.message = '';
+                        }, 2000);
+                    } catch (error) {
+                        this.messageType = 'error';
+                        this.message = error.response?.data?.message || '修改失败';
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                handleLogout() {
+                    this.token = '';
+                    localStorage.removeItem('token');
+                    this.currentView = 'login';
+                    this.login = { email: '', password: '' };
+                    this.message = '';
+                },
+
+                goBackToLogin() {
+                    this.currentView = 'login';
+                    this.resetToken = '';
+                    this.reset = { newPassword: '', confirmPassword: '' };
+                    this.forgot = { email: '' };
+                    this.message = '';
+                }
+            },
+
+            mounted() {
+                if (this.token) {
+                    this.currentView = 'profile';
+                }
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
